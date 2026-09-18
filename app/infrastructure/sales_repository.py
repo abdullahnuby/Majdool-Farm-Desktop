@@ -11,6 +11,18 @@ class SalesRepository:
   with SessionLocal() as s:
    if s.scalar(select(Customer).where(Customer.code==code)):raise ValueError("كود العميل مستخدم بالفعل.")
    x=Customer(code=code,name=name,phone=phone or None);s.add(x);s.commit();s.refresh(x);return x
+ def update_customer(self,customer_id,name,phone=""):
+  if not name.strip():raise ValueError("اسم العميل مطلوب.")
+  with SessionLocal() as s:
+   x=s.get(Customer,customer_id)
+   if not x:raise ValueError("العميل غير موجود.")
+   x.name=name.strip();x.phone=phone or None;s.commit();s.refresh(x);return x
+ def delete_customer(self,customer_id):
+  with SessionLocal() as s:
+   x=s.get(Customer,customer_id)
+   if not x:raise ValueError("العميل غير موجود.")
+   if s.scalar(select(SalesInvoice).where(SalesInvoice.customer_id==customer_id)) or s.scalar(select(Receipt).where(Receipt.customer_id==customer_id)):raise ValueError("لا يمكن حذف عميل مرتبط بفواتير أو تحصيلات.")
+   s.delete(x);s.commit()
  def create_invoice(self,customer_id,day,discount,tax):
   with SessionLocal() as s:
    n=f"SI-{day.strftime('%Y%m%d')}-{(s.scalar(select(func.count(SalesInvoice.id))) or 0)+1:04d}"

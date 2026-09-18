@@ -15,6 +15,18 @@ class PurchaseRepository:
         with SessionLocal() as s:
             if s.scalar(select(Supplier).where(Supplier.code==code)):raise ValueError("كود المورد مستخدم بالفعل.")
             x=Supplier(code=code,name=name,phone=phone or None);s.add(x);s.commit();s.refresh(x);return x
+    def update_supplier(self,supplier_id,name,phone=""):
+        if not name.strip():raise ValueError("اسم المورد مطلوب.")
+        with SessionLocal() as s:
+            x=s.get(Supplier,supplier_id)
+            if not x:raise ValueError("المورد غير موجود.")
+            x.name=name.strip();x.phone=phone or None;s.commit();s.refresh(x);return x
+    def delete_supplier(self,supplier_id):
+        with SessionLocal() as s:
+            x=s.get(Supplier,supplier_id)
+            if not x:raise ValueError("المورد غير موجود.")
+            if s.scalar(select(PurchaseInvoice).where(PurchaseInvoice.supplier_id==supplier_id)) or s.scalar(select(SupplierPayment).where(SupplierPayment.supplier_id==supplier_id)):raise ValueError("لا يمكن حذف مورد مرتبط بفواتير أو سداد.")
+            s.delete(x);s.commit()
     def create_invoice(self,supplier_id):
         with SessionLocal() as s:
             n=f"PI-{date.today().strftime('%Y%m%d')}-{(s.scalar(select(func.count(PurchaseInvoice.id))) or 0)+1:04d}"

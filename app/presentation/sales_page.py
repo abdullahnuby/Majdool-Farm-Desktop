@@ -1,4 +1,4 @@
-from PySide6.QtWidgets import QTableWidget,QTableWidgetItem,QInputDialog,QMessageBox
+from PySide6.QtWidgets import QInputDialog,QMessageBox,QTabWidget,QTableWidget,QTableWidgetItem
 from datetime import date
 from app.presentation.ui_theme import PageShell,Toolbar,button,setup_table
 from app.infrastructure.sales_repository import SalesRepository
@@ -6,19 +6,25 @@ class SalesPage(PageShell):
     def __init__(self):
         super().__init__("المبيعات والعملاء","الفواتير، بنود البيع والتحصيل.")
         self.repo=SalesRepository(); tb=Toolbar("بحث برقم الفاتورة أو العميل…"); self.search=tb.search; self.content.addWidget(tb)
-        self.table=QTableWidget(0,6); self.table.setHorizontalHeaderLabels(["الفاتورة","التاريخ","العميل","الحالة","قبل الخصم","الإجمالي"]); setup_table(self.table); self.content.addWidget(self.table,1)
-        for t,f,k in [("＋ عميل جديد",self.customer,"normal"),("＋ فاتورة جديدة",self.invoice,"primary"),("إضافة بند",self.line,"normal"),("تأكيد الفاتورة",self.confirm,"normal"),("تحصيل",self.receipt,"normal")]:self.actions.addWidget(button(t,k,f))
+        self.table=QTableWidget(0,6); self.table.setHorizontalHeaderLabels(["الفاتورة","التاريخ","العميل","الحالة","قبل الخصم","الإجمالي"]); setup_table(self.table)
+        self.customer_table=QTableWidget(0,3);self.customer_table.setHorizontalHeaderLabels(["الكود","العميل","الهاتف"]);setup_table(self.customer_table)
+        self.tabs=QTabWidget();self.tabs.addTab(self.table,"الفواتير");self.tabs.addTab(self.customer_table,"العملاء");self.content.addWidget(self.tabs,1)
+        for t,f,k in [("＋ عميل جديد",self.customer,"normal"),("تعديل العميل",self.edit_customer,"normal"),("حذف العميل",self.delete_customer,"danger"),("＋ فاتورة جديدة",self.invoice,"primary"),("إضافة بند",self.line,"normal"),("تأكيد الفاتورة",self.confirm,"normal"),("تحصيل",self.receipt,"normal")]:self.actions.addWidget(button(t,k,f))
         self.search.textChanged.connect(self.filter_rows)
         self._rows=[];self._visible_invoices=[]
         self.refresh()
     def refresh(self):
         rows=self.repo.invoices(); self._invoices=rows; self._rows=[]
         for x in rows:self._rows.append([x.number,x.invoice_date,x.customer_id,x.status,x.subtotal,x.total])
-        self.filter_rows(self.search.text())
+        self.filter_rows(self.search.text());self._customers=self.repo.customers();self._render_customers()
     def _render(self,rows):
         self.table.setRowCount(len(rows))
         for i,r in enumerate(rows):
             for j,v in enumerate(r):self.table.setItem(i,j,QTableWidgetItem(str(v)))
+    def _render_customers(self):
+        self.customer_table.setRowCount(len(self._customers))
+        for i,customer in enumerate(self._customers):
+            for j,value in enumerate([customer.code,customer.name,customer.phone or "-"]):self.customer_table.setItem(i,j,QTableWidgetItem(str(value)))
     def filter_rows(self,text):
         query=text.strip().lower(); matches=[(invoice,row) for invoice,row in zip(self._invoices,self._rows) if not query or query in " ".join(map(str,row)).lower()]
         self._visible_invoices=[invoice for invoice,row in matches];self._render([row for invoice,row in matches])
@@ -63,3 +69,20 @@ class SalesPage(PageShell):
         if row < 0 or row >= len(self._visible_invoices):
             QMessageBox.information(self,"اختر فاتورة","حدد فاتورة من الجدول أولاً."); return None
         return self._visible_invoices[row]
+    def selected_customer(self):
+        row=self.customer_table.currentRow()
+        if row<0 or row>=len(self._customers):QMessageBox.information(self,"اختر عميلاً","حدد عميلاً من تبويب العملاء أولاً.");return None
+        return self._customers[row]
+    def edit_customer(self):
+        customer=self.selected_customer()
+        if not customer:return
+        name,ok=QInputDialog.getText(self,"تعديل العميل","الاسم:",text=customer.name)
+        if ok:
+            try:self.repo.update_customer(customer.id,name);self.refresh()
+            except Exception as error:QMessageBox.warning(self,"تعذر التعديل",str(error))
+    def delete_customer(self):
+        customer=self.selected_customer()
+        if not customer:return
+        if QMessageBox.question(self,"تأكيد الحذف",f"حذف العميل {customer.name}؟")==QMessageBox.StandardButton.Yes:
+            try:self.repo.delete_customer(customer.id);self.refresh()
+            except Exception as error:QMessageBox.warning(self,"تعذر الحذف",str(error))

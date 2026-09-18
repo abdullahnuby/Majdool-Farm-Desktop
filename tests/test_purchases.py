@@ -6,3 +6,9 @@ def test_bad_discount():
     try: PurchaseService.invoice_total(100,101,0)
     except ValueError:return
     assert False
+
+def test_supplier_update_requires_name():
+    from app.infrastructure.purchase_repository import PurchaseRepository
+    try: PurchaseRepository().update_supplier(1, " ")
+    except ValueError as error: assert "اسم المورد" in str(error)
+    else: assert False

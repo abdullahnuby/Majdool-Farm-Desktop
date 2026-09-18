@@ -6,3 +6,9 @@ def test_invalid_discount():
  try: SalesService.invoice_total(100,101,0)
  except ValueError:return
  assert False
+
+def test_customer_update_requires_name():
+ from app.infrastructure.sales_repository import SalesRepository
+ try: SalesRepository().update_customer(1, " ")
+ except ValueError as error: assert "اسم العميل" in str(error)
+ else: assert False
