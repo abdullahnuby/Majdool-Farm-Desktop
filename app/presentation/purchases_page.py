@@ -7,15 +7,20 @@ class PurchasesPage(PageShell):
         self.repo=PurchaseRepository(); tb=Toolbar("بحث في فواتير الشراء…"); self.search=tb.search; self.content.addWidget(tb)
         self.table=QTableWidget(0,6); self.table.setHorizontalHeaderLabels(["الفاتورة","التاريخ","المورد","الحالة","الإجمالي","المستحق"]); setup_table(self.table); self.content.addWidget(self.table,1)
         for t,f,k in [("＋ مورد جديد",self.supplier,"normal"),("＋ فاتورة شراء",self.invoice,"primary"),("إضافة صنف",self.line,"normal"),("تأكيد",self.confirm,"normal"),("سداد",self.pay,"normal")]:self.actions.addWidget(button(t,k,f))
+        self.search.textChanged.connect(self.filter_rows)
+        self._rows=[];self._visible_invoices=[]
         self.refresh()
     def refresh(self):
         rows=self.repo.invoices(); self._invoices=rows; sup={x.id:x.name for x in self.repo.suppliers()}; self._rows=[]
         for x in rows:self._rows.append([x.number,x.invoice_date,sup.get(x.supplier_id,"-"),x.status,x.total,self.repo.outstanding(x.id)])
-        self._render(self._rows)
+        self.filter_rows(self.search.text())
     def _render(self,rows):
         self.table.setRowCount(len(rows))
         for i,r in enumerate(rows):
             for j,v in enumerate(r):self.table.setItem(i,j,QTableWidgetItem(str(v)))
+    def filter_rows(self,text):
+        query=text.strip().lower(); matches=[(invoice,row) for invoice,row in zip(self._invoices,self._rows) if not query or query in " ".join(map(str,row)).lower()]
+        self._visible_invoices=[invoice for invoice,row in matches];self._render([row for invoice,row in matches])
     def supplier(self):
         c,ok=QInputDialog.getText(self,"مورد جديد","الكود:")
         if not ok:return
@@ -58,6 +63,6 @@ class PurchasesPage(PageShell):
 
     def selected_invoice(self):
         row=self.table.currentRow()
-        if row < 0 or row >= len(self._invoices):
+        if row < 0 or row >= len(self._visible_invoices):
             QMessageBox.information(self,"اختر فاتورة","حدد فاتورة من الجدول أولاً."); return None
-        return self._invoices[row]
+        return self._visible_invoices[row]

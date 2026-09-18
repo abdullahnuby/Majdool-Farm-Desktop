@@ -5,18 +5,23 @@ from app.infrastructure.sales_repository import SalesRepository
 class SalesPage(PageShell):
     def __init__(self):
         super().__init__("المبيعات والعملاء","الفواتير، بنود البيع والتحصيل.")
-        self.repo=SalesRepository(); tb=Toolbar("بحث برقم الفاتورة أو العميل…"); self.content.addWidget(tb)
+        self.repo=SalesRepository(); tb=Toolbar("بحث برقم الفاتورة أو العميل…"); self.search=tb.search; self.content.addWidget(tb)
         self.table=QTableWidget(0,6); self.table.setHorizontalHeaderLabels(["الفاتورة","التاريخ","العميل","الحالة","قبل الخصم","الإجمالي"]); setup_table(self.table); self.content.addWidget(self.table,1)
         for t,f,k in [("＋ عميل جديد",self.customer,"normal"),("＋ فاتورة جديدة",self.invoice,"primary"),("إضافة بند",self.line,"normal"),("تأكيد الفاتورة",self.confirm,"normal"),("تحصيل",self.receipt,"normal")]:self.actions.addWidget(button(t,k,f))
+        self.search.textChanged.connect(self.filter_rows)
+        self._rows=[];self._visible_invoices=[]
         self.refresh()
     def refresh(self):
         rows=self.repo.invoices(); self._invoices=rows; self._rows=[]
         for x in rows:self._rows.append([x.number,x.invoice_date,x.customer_id,x.status,x.subtotal,x.total])
-        self._render(self._rows)
+        self.filter_rows(self.search.text())
     def _render(self,rows):
         self.table.setRowCount(len(rows))
         for i,r in enumerate(rows):
             for j,v in enumerate(r):self.table.setItem(i,j,QTableWidgetItem(str(v)))
+    def filter_rows(self,text):
+        query=text.strip().lower(); matches=[(invoice,row) for invoice,row in zip(self._invoices,self._rows) if not query or query in " ".join(map(str,row)).lower()]
+        self._visible_invoices=[invoice for invoice,row in matches];self._render([row for invoice,row in matches])
     def customer(self):
         c,ok=QInputDialog.getText(self,"عميل جديد","الكود:")
         if not ok:return
@@ -55,6 +60,6 @@ class SalesPage(PageShell):
 
     def selected_invoice(self):
         row=self.table.currentRow()
-        if row < 0 or row >= len(self._invoices):
+        if row < 0 or row >= len(self._visible_invoices):
             QMessageBox.information(self,"اختر فاتورة","حدد فاتورة من الجدول أولاً."); return None
-        return self._invoices[row]
+        return self._visible_invoices[row]
