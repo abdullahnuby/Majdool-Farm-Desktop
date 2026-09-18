@@ -42,6 +42,12 @@ class Asset(Base):
 class MaintenanceOrder(Base):
  __tablename__="maintenance_orders";id:Mapped[int]=mapped_column(primary_key=True);asset_id:Mapped[int|None]=mapped_column(ForeignKey("assets.id"));title:Mapped[str]=mapped_column(String(150));opened_date:Mapped[date]=mapped_column(Date);status:Mapped[str]=mapped_column(String(40),default="مفتوح");priority:Mapped[str]=mapped_column(String(40),default="متوسطة");cost:Mapped[float]=mapped_column(Float,default=0);notes:Mapped[str|None]=mapped_column(Text)
 
+class IrrigationRecord(Base):
+ __tablename__="irrigation_records";id:Mapped[int]=mapped_column(primary_key=True);block_id:Mapped[int|None]=mapped_column(ForeignKey("blocks.id"));irrigation_date:Mapped[date]=mapped_column(Date);method:Mapped[str]=mapped_column(String(80),default="تنقيط");quantity:Mapped[float]=mapped_column(Float);unit:Mapped[str]=mapped_column(String(30),default="متر مكعب");status:Mapped[str]=mapped_column(String(40),default="منفذ");responsible:Mapped[str|None]=mapped_column(String(120));notes:Mapped[str|None]=mapped_column(Text)
+
+class FertilizationRecord(Base):
+ __tablename__="fertilization_records";id:Mapped[int]=mapped_column(primary_key=True);block_id:Mapped[int|None]=mapped_column(ForeignKey("blocks.id"));fertilization_date:Mapped[date]=mapped_column(Date);product:Mapped[str]=mapped_column(String(120));quantity:Mapped[float]=mapped_column(Float);unit:Mapped[str]=mapped_column(String(30),default="كجم");status:Mapped[str]=mapped_column(String(40),default="منفذ");responsible:Mapped[str|None]=mapped_column(String(120));notes:Mapped[str|None]=mapped_column(Text)
+
 from app.domain.models_hr import Employee,Attendance,EmployeeAssignment,EmployeeAdvance,PayrollDeduction,Payroll
 
 from app.domain.models_consultants import Consultant,FarmVisit,AgriculturalReport
