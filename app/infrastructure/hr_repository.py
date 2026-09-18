@@ -11,6 +11,20 @@ class HRRepository:
             if s.scalar(select(Employee).where(Employee.code==code)): raise ValueError("كود الموظف مستخدم بالفعل.")
             x=Employee(code=code,name=name,job_title=job,daily_rate=daily_rate,monthly_salary=monthly_salary,phone=phone or None)
             s.add(x);s.commit();s.refresh(x);return x
+    def update_employee(self,employee_id,name,job,daily_rate,monthly_salary,status):
+        if not name.strip():raise ValueError("اسم الموظف مطلوب.")
+        if daily_rate<0 or monthly_salary<0:raise ValueError("الأجر لا يمكن أن يكون سالباً.")
+        with SessionLocal() as s:
+            x=s.get(Employee,employee_id)
+            if not x:raise ValueError("الموظف غير موجود.")
+            x.name=name.strip();x.job_title=job.strip() or "عامل";x.daily_rate=daily_rate;x.monthly_salary=monthly_salary;x.status=status.strip() or "نشط";s.commit();s.refresh(x);return x
+    def delete_employee(self,employee_id):
+        with SessionLocal() as s:
+            x=s.get(Employee,employee_id)
+            if not x:raise ValueError("الموظف غير موجود.")
+            related=[Attendance,EmployeeAssignment,EmployeeAdvance,PayrollDeduction,Payroll]
+            if any(s.scalar(select(model).where(model.employee_id==employee_id)) for model in related):raise ValueError("لا يمكن حذف موظف له سجلات مالية أو حضور.")
+            s.delete(x);s.commit()
     def mark_attendance(self,employee_id,day,status="حاضر",check_in="",check_out=""):
         with SessionLocal() as s:
             if s.scalar(select(Attendance).where(Attendance.employee_id==employee_id,Attendance.attendance_date==day)):

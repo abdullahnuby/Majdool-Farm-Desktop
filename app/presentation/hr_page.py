@@ -7,7 +7,7 @@ class HRPage(PageShell):
         super().__init__("الموظفون والرواتب","الحضور والسلف والخصومات وكشوف الرواتب.")
         self.repo=HRRepository();toolbar=Toolbar("بحث عن موظف…");self.search=toolbar.search;self.content.addWidget(toolbar)
         self.table=QTableWidget(0,5);self.table.setHorizontalHeaderLabels(["الكود","الموظف","الوظيفة","الأجر اليومي","الحالة"]);setup_table(self.table);self.content.addWidget(self.table,1)
-        for t,f,k in [("＋ موظف جديد",self.employee,"primary"),("حضور اليوم",self.attendance,"normal"),("سلفة",self.advance,"normal"),("خصم",self.deduction,"normal"),("إنشاء راتب",self.payroll,"normal")]:self.actions.addWidget(button(t,k,f))
+        for t,f,k in [("＋ موظف جديد",self.employee,"primary"),("تعديل الموظف",self.edit_employee,"normal"),("حذف الموظف",self.delete_employee,"danger"),("حضور اليوم",self.attendance,"normal"),("سلفة",self.advance,"normal"),("خصم",self.deduction,"normal"),("إنشاء راتب",self.payroll,"normal")]:self.actions.addWidget(button(t,k,f))
         self.search.textChanged.connect(self.filter_rows)
         self.refresh()
     def refresh(self):
@@ -58,3 +58,18 @@ class HRPage(PageShell):
             try:
                 x=self.repo.create_payroll(e.id,date.today().strftime("%Y-%m"));QMessageBox.information(self,"تم",f"صافي الراتب: {x.net_amount:,.2f}")
             except Exception as ex:QMessageBox.warning(self,"خطأ",str(ex))
+    def edit_employee(self):
+        employee=self.first()
+        if not employee:return
+        name,ok=QInputDialog.getText(self,"تعديل الموظف","الاسم:",text=employee.name)
+        if not ok:return
+        daily,ok=QInputDialog.getDouble(self,"تعديل الموظف","الأجر اليومي:",employee.daily_rate,0,100000000,2)
+        if ok:
+            try:self.repo.update_employee(employee.id,name,employee.job_title,daily,employee.monthly_salary,employee.status);self.refresh()
+            except Exception as error:QMessageBox.warning(self,"تعذر التعديل",str(error))
+    def delete_employee(self):
+        employee=self.first()
+        if not employee:return
+        if QMessageBox.question(self,"تأكيد الحذف",f"حذف الموظف {employee.name}؟")==QMessageBox.StandardButton.Yes:
+            try:self.repo.delete_employee(employee.id);self.refresh()
+            except Exception as error:QMessageBox.warning(self,"تعذر الحذف",str(error))
