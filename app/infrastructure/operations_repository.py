@@ -22,6 +22,18 @@ class OperationsRepository:
     with SessionLocal() as s:
      if s.scalar(select(Asset).where(Asset.code==code.strip())):raise ValueError("كود الأصل مستخدم بالفعل.")
      x=Asset(code=code.strip(),name=name.strip(),asset_type=asset_type.strip() or "معدات");s.add(x);s.commit();s.refresh(x);return x
+ def update_asset(self,asset_id,name,asset_type,status):
+   if not name.strip():raise ValueError("اسم الأصل مطلوب.")
+   with SessionLocal() as s:
+    x=s.get(Asset,asset_id)
+    if not x:raise ValueError("الأصل غير موجود.")
+    x.name=name.strip();x.asset_type=asset_type.strip() or "معدات";x.status=status.strip() or "متاح";s.commit();s.refresh(x);return x
+ def delete_asset(self,asset_id):
+   with SessionLocal() as s:
+    x=s.get(Asset,asset_id)
+    if not x:raise ValueError("الأصل غير موجود.")
+    if s.scalar(select(MaintenanceOrder).where(MaintenanceOrder.asset_id==asset_id)):raise ValueError("لا يمكن حذف أصل مرتبط بأمر صيانة.")
+    s.delete(x);s.commit()
  def add_order(self,title,asset_id=None,priority="متوسطة"):
     if not title.strip():raise ValueError("عنوان أمر الصيانة مطلوب.")
     with SessionLocal() as s:

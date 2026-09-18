@@ -21,3 +21,8 @@ def test_asset_requires_code_and_name():
 def test_maintenance_order_requires_title():
     with pytest.raises(ValueError, match="عنوان أمر الصيانة مطلوب"):
         OperationsRepository().add_order(" ")
+
+
+def test_asset_update_requires_name():
+    with pytest.raises(ValueError, match="اسم الأصل مطلوب"):
+        OperationsRepository().update_asset(1, " ", "معدات", "متاح")
