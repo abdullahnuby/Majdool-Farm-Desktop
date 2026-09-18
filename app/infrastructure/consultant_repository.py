@@ -14,6 +14,18 @@ class ConsultantRepository:
         with SessionLocal() as s:
             if s.scalar(select(Consultant).where(Consultant.code==code)):raise ValueError("كود الاستشاري مستخدم بالفعل.")
             x=Consultant(code=code,name=name,specialty=specialty,phone=phone or None);s.add(x);s.commit();s.refresh(x);return x
+    def update_consultant(self,consultant_id,name,specialty):
+        if not name.strip():raise ValueError("اسم الاستشاري مطلوب.")
+        with SessionLocal() as s:
+            x=s.get(Consultant,consultant_id)
+            if not x:raise ValueError("الاستشاري غير موجود.")
+            x.name=name.strip();x.specialty=specialty.strip() or "زراعي";s.commit();s.refresh(x);return x
+    def delete_consultant(self,consultant_id):
+        with SessionLocal() as s:
+            x=s.get(Consultant,consultant_id)
+            if not x:raise ValueError("الاستشاري غير موجود.")
+            if s.scalar(select(FarmVisit).where(FarmVisit.consultant_id==consultant_id)):raise ValueError("لا يمكن حذف استشاري مرتبط بزيارات.")
+            s.delete(x);s.commit()
     def add_visit(self,consultant_id=None,block_id=None,visit_type="زيارة دورية",purpose="",observations="",recommendations=""):
         with SessionLocal() as s:
             n=f"VIS-{date.today().strftime('%Y%m%d')}-{(s.scalar(select(func.count(FarmVisit.id))) or 0)+1:04d}"
