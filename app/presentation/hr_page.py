@@ -5,18 +5,26 @@ from app.infrastructure.hr_repository import HRRepository
 class HRPage(PageShell):
     def __init__(self):
         super().__init__("الموظفون والرواتب","الحضور والسلف والخصومات وكشوف الرواتب.")
-        self.repo=HRRepository();self.content.addWidget(Toolbar("بحث عن موظف…"))
+        self.repo=HRRepository();toolbar=Toolbar("بحث عن موظف…");self.search=toolbar.search;self.content.addWidget(toolbar)
         self.table=QTableWidget(0,5);self.table.setHorizontalHeaderLabels(["الكود","الموظف","الوظيفة","الأجر اليومي","الحالة"]);setup_table(self.table);self.content.addWidget(self.table,1)
         for t,f,k in [("＋ موظف جديد",self.employee,"primary"),("حضور اليوم",self.attendance,"normal"),("سلفة",self.advance,"normal"),("خصم",self.deduction,"normal"),("إنشاء راتب",self.payroll,"normal")]:self.actions.addWidget(button(t,k,f))
+        self.search.textChanged.connect(self.filter_rows)
         self.refresh()
     def refresh(self):
-        rows=self.repo.employees();self.table.setRowCount(len(rows))
+        rows=self.repo.employees();self._all_employees=rows;self.filter_rows(self.search.text())
+
+    def filter_rows(self,text):
+        query=text.strip().lower()
+        self._employees=[x for x in getattr(self,"_all_employees",[]) if not query or query in f"{x.code} {x.name} {x.job_title}".lower()]
+        self.table.setRowCount(len(self._employees))
+        rows=self._employees
         for i,x in enumerate(rows):
             for j,v in enumerate([x.code,x.name,x.job_title,x.daily_rate,x.status]):self.table.setItem(i,j,QTableWidgetItem(str(v)))
     def first(self):
-        xs=self.repo.employees()
-        if not xs:QMessageBox.information(self,"تنبيه","أضف موظفاً أولاً.");return None
-        return xs[0]
+        row=self.table.currentRow()
+        if row < 0 or row >= len(self._employees):
+            QMessageBox.information(self,"اختر موظفاً","حدد موظفاً من الجدول أولاً."); return None
+        return self._employees[row]
     def employee(self):
         c,ok=QInputDialog.getText(self,"موظف جديد","الكود:")
         if not ok:return
@@ -34,14 +42,15 @@ class HRPage(PageShell):
         if not e:return
         q,ok=QInputDialog.getDouble(self,"سلفة","المبلغ:",100,0.01,100000000,2)
         if ok:
-            try:self.repo.add_advance(e.id,q)
+            try:self.repo.add_advance(e.id,q);self.refresh()
             except Exception as ex:QMessageBox.warning(self,"خطأ",str(ex))
     def deduction(self):
         e=self.first()
         if not e:return
         q,ok=QInputDialog.getDouble(self,"خصم","المبلغ:",100,0.01,100000000,2)
         if ok:
-            try:self.repo.add_deduction(e.id,date.today().strftime("%Y-%m"),q,"خصم إداري")
+            try:self.repo.add_deduction(e.id,date.today().strftime("%Y-%m"),q,"خصم إداري");self.refresh()
+
             except Exception as ex:QMessageBox.warning(self,"خطأ",str(ex))
     def payroll(self):
         e=self.first()

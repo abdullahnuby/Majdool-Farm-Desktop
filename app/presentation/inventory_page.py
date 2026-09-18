@@ -13,14 +13,19 @@ class InventoryPage(PageShell):
     def refresh(self):
         items=self.repo.items(); wh=self.repo.warehouses()
         if not wh: self.repo.add_warehouse("MAIN","المخزن الرئيسي"); wh=self.repo.warehouses()
+        self._items=items; self._warehouses=wh
         self._rows=[]
         for x in items:self._rows.append([x.code,x.name,x.category,x.unit,self.repo.balance(x.id,wh[0].id)])
+        self._visible_items=items
         self._render(self._rows)
     def _render(self,rows):
         self.table.setRowCount(len(rows))
         for i,row in enumerate(rows):
             for j,v in enumerate(row):self.table.setItem(i,j,QTableWidgetItem(str(v)))
-    def filter_rows(self,t): self._render([r for r in self._rows if not t.strip() or t.lower() in " ".join(map(str,r)).lower()])
+    def filter_rows(self,t):
+        matches=[(item,row) for item,row in zip(self._items,self._rows) if not t.strip() or t.lower() in " ".join(map(str,row)).lower()]
+        self._visible_items=[item for item,row in matches]
+        self._render([row for item,row in matches])
     def warehouse(self):
         c,ok=QInputDialog.getText(self,"مخزن جديد","الكود:"); 
         if ok:
@@ -36,9 +41,12 @@ class InventoryPage(PageShell):
                 try:self.repo.add_item(c,n);self.refresh()
                 except Exception as e:QMessageBox.warning(self,"تعذر الحفظ",str(e))
     def issue(self):
-        items=self.repo.items(); wh=self.repo.warehouses()
-        if not items or not wh:return
-        x=items[0]; bal=self.repo.balance(x.id,wh[0].id)
+        row=self.table.currentRow()
+        if row < 0 or row >= len(self._visible_items):
+            QMessageBox.information(self,"اختر صنفاً","حدد صنفاً من الجدول أولاً."); return
+        x=self._visible_items[row]; wh=self._warehouses
+        if not wh:return
+        bal=self.repo.balance(x.id,wh[0].id)
         q,ok=QInputDialog.getDouble(self,"صرف مخزون",f"الكمية — الرصيد الحالي {bal}",1,0.01,10000000,2)
         if ok:
             try:self.repo.issue(x.id,wh[0].id,q);self.refresh()

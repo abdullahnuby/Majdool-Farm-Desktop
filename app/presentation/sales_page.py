@@ -10,7 +10,7 @@ class SalesPage(PageShell):
         for t,f,k in [("＋ عميل جديد",self.customer,"normal"),("＋ فاتورة جديدة",self.invoice,"primary"),("إضافة بند",self.line,"normal"),("تأكيد الفاتورة",self.confirm,"normal"),("تحصيل",self.receipt,"normal")]:self.actions.addWidget(button(t,k,f))
         self.refresh()
     def refresh(self):
-        rows=self.repo.invoices(); self._rows=[]
+        rows=self.repo.invoices(); self._invoices=rows; self._rows=[]
         for x in rows:self._rows.append([x.number,x.invoice_date,x.customer_id,x.status,x.subtotal,x.total])
         self._render(self._rows)
     def _render(self,rows):
@@ -30,7 +30,7 @@ class SalesPage(PageShell):
         try:self.repo.create_invoice(cs[0].id,date.today(),0,0);self.refresh()
         except Exception as e:QMessageBox.warning(self,"خطأ",str(e))
     def line(self):
-        inv=self.repo.invoices()
+        inv=self.selected_invoice()
         if not inv:return
         bid,ok=QInputDialog.getInt(self,"بند بيع","رقم دفعة الحصاد:",1,1,100000)
         if not ok:return
@@ -38,17 +38,23 @@ class SalesPage(PageShell):
         if not ok:return
         p,ok=QInputDialog.getDouble(self,"السعر","سعر الكجم:",1,0,100000,2)
         if ok:
-            try:self.repo.add_line(inv[0].id,bid,"درجة أولى",q,p);self.refresh()
+            try:self.repo.add_line(inv.id,bid,"درجة أولى",q,p);self.refresh()
             except Exception as e:QMessageBox.warning(self,"خطأ",str(e))
     def confirm(self):
-        inv=self.repo.invoices()
+        inv=self.selected_invoice()
         if inv:
-            try:self.repo.confirm(inv[0].id);self.refresh()
+            try:self.repo.confirm(inv.id);self.refresh()
             except Exception as e:QMessageBox.warning(self,"خطأ",str(e))
     def receipt(self):
-        inv=self.repo.invoices()
+        inv=self.selected_invoice()
         if not inv:return
         q,ok=QInputDialog.getDouble(self,"تحصيل","المبلغ:",1,0.01,100000000,2)
         if ok:
-            try:self.repo.add_receipt(inv[0].customer_id,inv[0].id,q)
+            try:self.repo.add_receipt(inv.customer_id,inv.id,q);self.refresh()
             except Exception as e:QMessageBox.warning(self,"خطأ",str(e))
+
+    def selected_invoice(self):
+        row=self.table.currentRow()
+        if row < 0 or row >= len(self._invoices):
+            QMessageBox.information(self,"اختر فاتورة","حدد فاتورة من الجدول أولاً."); return None
+        return self._invoices[row]
