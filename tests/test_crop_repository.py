@@ -16,3 +16,13 @@ def test_batch_requires_positive_quantity():
 def test_batch_requires_season_and_block():
     with pytest.raises(ValueError, match="الموسم والبلوك"):
         CropRepository().add_batch(0, 1, 10)
+
+
+def test_sort_requires_positive_quantity():
+    with pytest.raises(ValueError, match="كمية الفرز"):
+        CropRepository().add_sort_line(1, "درجة أولى", 0)
+
+
+def test_packing_requires_positive_values():
+    with pytest.raises(ValueError, match="بيانات التعبئة"):
+        CropRepository().add_packing(1, "كرتون", 0, 1)

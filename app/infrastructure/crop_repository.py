@@ -26,3 +26,22 @@ class CropRepository:
      s.add(batch);s.flush()
      s.add(CropMovement(batch_id=batch.id,movement_type="استلام_حصاد",quantity_kg=gross_kg,reference_type="harvest_batch",reference_id=batch.id))
      s.commit();s.refresh(batch);return batch
+ def sort_lines(self):
+   with SessionLocal() as s:return s.scalars(select(SortLine).order_by(SortLine.id.desc())).all()
+ def packing_batches(self):
+   with SessionLocal() as s:return s.scalars(select(PackingBatch).order_by(PackingBatch.packing_date.desc())).all()
+ def add_sort_line(self,batch_id,grade,quantity_kg):
+   if not grade.strip():raise ValueError("درجة الفرز مطلوبة.")
+   if quantity_kg<=0:raise ValueError("كمية الفرز يجب أن تكون أكبر من صفر.")
+   if quantity_kg>self.ready_kg(batch_id):raise ValueError("كمية الفرز أكبر من رصيد الدفعة.")
+   with SessionLocal() as s:
+    if not s.get(HarvestBatch,batch_id):raise ValueError("دفعة الحصاد غير موجودة.")
+    x=SortLine(batch_id=batch_id,grade=grade.strip(),quantity_kg=quantity_kg);s.add(x);s.commit();s.refresh(x);return x
+ def add_packing(self,batch_id,package_type,package_weight_kg,package_count):
+   if not package_type.strip():raise ValueError("نوع العبوة مطلوب.")
+   if package_weight_kg<=0 or package_count<=0:raise ValueError("بيانات التعبئة غير صحيحة.")
+   total=package_weight_kg*package_count
+   if total>self.ready_kg(batch_id):raise ValueError("كمية التعبئة أكبر من رصيد الدفعة.")
+   with SessionLocal() as s:
+    if not s.get(HarvestBatch,batch_id):raise ValueError("دفعة الحصاد غير موجودة.")
+    x=PackingBatch(number=f"PK-{date.today().strftime('%Y%m%d')}-{(s.scalar(select(func.count(PackingBatch.id))) or 0)+1:04d}",batch_id=batch_id,packing_date=date.today(),package_type=package_type.strip(),package_weight_kg=package_weight_kg,package_count=package_count,total_kg=total);s.add(x);s.commit();s.refresh(x);return x
