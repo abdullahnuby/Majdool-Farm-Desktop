@@ -1,0 +1,29 @@
+name: Frontend Agent Orchestrator
+
+on:
+  workflow_dispatch:
+    inputs:
+      scope:
+        description: Frontend scope
+        required: true
+        default: full
+        type: choice
+        options: [full, audit, design-system, navigation, modules, qa]
+  issues:
+    types: [opened, labeled]
+
+permissions:
+  contents: write
+  issues: read
+  pull-requests: write
+  actions: read
+  copilot-requests: write
+
+jobs:
+  instructions:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Repository instructions
+        run: |
+          echo 'Agentic execution is defined in .github/workflows/medjool-frontend-redesign.md.'
+          echo 'Use GitHub Agentic Workflows (gh aw) to compile and run the autonomous workflow.'

@@ -1,0 +1,68 @@
+name: Android Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: Build type
+        required: true
+        default: debug
+        type: choice
+        options: [debug, release]
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  android:
+    name: Build Android package
+    runs-on: ubuntu-latest
+    if: ${{ hashFiles('android/**', 'android/**/gradlew', 'build.gradle*', 'settings.gradle*') != '' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - name: Make Gradle executable
+        run: chmod +x android/gradlew 2>/dev/null || true
+
+      - name: Build debug APK
+        if: ${{ github.event_name != 'push' && inputs.build_type == 'debug' }}
+        working-directory: android
+        run: ./gradlew assembleDebug
+
+      - name: Build release APK
+        if: ${{ github.event_name == 'push' || inputs.build_type == 'release' }}
+        working-directory: android
+        run: ./gradlew assembleRelease
+
+      - name: Upload APKs
+        uses: actions/upload-artifact@v4
+        with:
+          name: medjool-android
+          path: android/**/build/outputs/apk/**/*.apk
+          if-no-files-found: error
+
+      - name: Create GitHub release
+        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') }}
+        uses: softprops/action-gh-release@v2
+        with:
+          files: android/**/build/outputs/apk/**/*.apk
+
+  no-android-project:
+    name: Android project status
+    runs-on: ubuntu-latest
+    if: ${{ hashFiles('android/**', 'android/**/gradlew', 'build.gradle*', 'settings.gradle*') == '' }}
+    steps:
+      - name: Explain missing Android project
+        run: |
+          echo 'No Android/Gradle project exists in this repository yet.'
+          echo 'The workflow is installed and ready; add the Android project before enabling APK builds.'

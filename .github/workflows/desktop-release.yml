@@ -1,0 +1,68 @@
+name: Desktop Release
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build desktop application
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            artifact: medjool-farm-manager-windows
+          - os: ubuntu-latest
+            artifact: medjool-farm-manager-linux
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt pyinstaller
+
+      - name: Verify project
+        run: |
+          python -m compileall app
+          python -m pytest -q
+
+      - name: Build executable
+        shell: bash
+        run: |
+          pyinstaller --noconfirm --clean --windowed --name MedjoolFarmManager app/__main__.py
+
+      - name: Upload desktop artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: dist/MedjoolFarmManager/**
+          if-no-files-found: error
+
+      - name: Package Windows ZIP
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: Compress-Archive -Path dist/MedjoolFarmManager -DestinationPath dist/MedjoolFarmManager-Windows.zip -Force
+
+      - name: Package Linux TAR
+        if: runner.os == 'Linux'
+        run: tar -czf dist/MedjoolFarmManager-Linux.tar.gz -C dist MedjoolFarmManager
+
+      - name: Publish tagged release
+        if: ${{ startsWith(github.ref, 'refs/tags/v') }}
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/MedjoolFarmManager-Windows.zip
+            dist/MedjoolFarmManager-Linux.tar.gz
