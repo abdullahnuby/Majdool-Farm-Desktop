@@ -17,6 +17,19 @@ class InventoryRepository:
         with SessionLocal() as s:
             if s.scalar(select(InventoryItem).where(InventoryItem.code==code)):raise ValueError("كود الصنف مستخدم.")
             x=InventoryItem(code=code,name=name,category=category,unit=unit,min_stock=min_stock);s.add(x);s.commit();s.refresh(x);return x
+    def update_item(self,item_id,name,category,unit,min_stock):
+        if not name.strip():raise ValueError("اسم الصنف مطلوب.")
+        if min_stock<0:raise ValueError("الحد الأدنى لا يمكن أن يكون سالباً.")
+        with SessionLocal() as s:
+            x=s.get(InventoryItem,item_id)
+            if not x:raise ValueError("الصنف غير موجود.")
+            x.name=name.strip();x.category=category.strip() or "عام";x.unit=unit.strip() or "وحدة";x.min_stock=min_stock;s.commit();s.refresh(x);return x
+    def delete_item(self,item_id):
+        with SessionLocal() as s:
+            x=s.get(InventoryItem,item_id)
+            if not x:raise ValueError("الصنف غير موجود.")
+            if s.scalar(select(InventoryMovement).where(InventoryMovement.item_id==item_id)):raise ValueError("لا يمكن حذف صنف له حركات مخزون.")
+            s.delete(x);s.commit()
     def find_or_create_item(self,name,category="عام",unit="وحدة"):
         with SessionLocal() as s:
             x=s.scalar(select(InventoryItem).where(InventoryItem.name==name))

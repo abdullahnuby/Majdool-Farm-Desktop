@@ -7,7 +7,7 @@ class InventoryPage(PageShell):
         self.repo=InventoryRepository()
         tb=Toolbar("ابحث بالكود أو اسم الصنف…"); self.search=tb.search; self.content.addWidget(tb)
         self.table=QTableWidget(0,5); self.table.setHorizontalHeaderLabels(["الكود","الصنف","التصنيف","الوحدة","الرصيد"]); setup_table(self.table); self.content.addWidget(self.table,1)
-        for text,fn,kind in [("＋ مخزن جديد",self.warehouse,"normal"),("＋ صنف جديد",self.item,"normal"),("صرف مخزون",self.issue,"primary")]:
+        for text,fn,kind in [("＋ مخزن جديد",self.warehouse,"normal"),("＋ صنف جديد",self.item,"normal"),("تعديل الصنف",self.edit_item,"normal"),("حذف الصنف",self.delete_item,"danger"),("صرف مخزون",self.issue,"primary")]:
             self.actions.addWidget(button(text,kind,fn))
         self.search.textChanged.connect(self.filter_rows); self.refresh()
     def refresh(self):
@@ -51,3 +51,26 @@ class InventoryPage(PageShell):
         if ok:
             try:self.repo.issue(x.id,wh[0].id,q);self.refresh()
             except Exception as e:QMessageBox.warning(self,"تعذر الصرف",str(e))
+
+    def selected_item(self):
+        row=self.table.currentRow()
+        if row<0 or row>=len(self._visible_items):
+            QMessageBox.information(self,"اختر صنفاً","حدد صنفاً من الجدول أولاً.");return None
+        return self._visible_items[row]
+
+    def edit_item(self):
+        item=self.selected_item()
+        if not item:return
+        name,ok=QInputDialog.getText(self,"تعديل الصنف","الاسم:",text=item.name)
+        if not ok:return
+        minimum,ok=QInputDialog.getDouble(self,"تعديل الصنف","حد إعادة الطلب:",item.min_stock,0,100000000,2)
+        if ok:
+            try:self.repo.update_item(item.id,name,item.category,item.unit,minimum);self.refresh()
+            except Exception as error:QMessageBox.warning(self,"تعذر التعديل",str(error))
+
+    def delete_item(self):
+        item=self.selected_item()
+        if not item:return
+        if QMessageBox.question(self,"تأكيد الحذف",f"حذف الصنف {item.name}؟")==QMessageBox.StandardButton.Yes:
+            try:self.repo.delete_item(item.id);self.refresh()
+            except Exception as error:QMessageBox.warning(self,"تعذر الحذف",str(error))
