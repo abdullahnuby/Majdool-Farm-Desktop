@@ -16,6 +16,7 @@ from app.presentation.sales_page import SalesPage
 from app.presentation.hr_page import HRPage
 from app.presentation.consultants_page import ConsultantsPage
 from app.presentation.purchases_page import PurchasesPage
+from app.presentation.assets_page import AssetsPage
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -69,7 +70,7 @@ class MainWindow(QMainWindow):
         pages=[
             DashboardPage(), FarmStructurePage(), AgriculturePage(), InventoryPage(),
             PurchasesPage(), OperationsPage(), CropPage(), SalesPage(),
-            self._placeholder("الأصول والمعدات","إدارة الأصول والمعدات والإهلاكات ستُربط بوحدة الأصول."),
+            AssetsPage(),
             HRPage(), ConsultantsPage(),
             self._placeholder("التقارير","مركز التقارير الموحد سيعرض التقارير التشغيلية والمالية والزراعية."),
             self._placeholder("الإعدادات","إعدادات النظام، النسخ الاحتياطي، المستخدمين والبيانات المرجعية.")
