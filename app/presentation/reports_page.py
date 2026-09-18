@@ -1,5 +1,6 @@
-from PySide6.QtWidgets import QTableWidget,QTableWidgetItem
-from app.presentation.ui_theme import PageShell,Toolbar,setup_table
+import csv
+from PySide6.QtWidgets import QFileDialog,QMessageBox,QTableWidget,QTableWidgetItem
+from app.presentation.ui_theme import PageShell,Toolbar,button,setup_table
 from app.infrastructure.repositories import FarmRepository,StructureRepository
 from app.infrastructure.operations_repository import OperationsRepository
 from app.infrastructure.crop_repository import CropRepository
@@ -20,6 +21,7 @@ class ReportsPage(PageShell):
         self.table.setHorizontalHeaderLabels(["المؤشر","القيمة"])
         setup_table(self.table)
         self.content.addWidget(self.table,1)
+        self.actions.addWidget(button("تصدير CSV","normal",self.export_csv))
         self.search.textChanged.connect(self.filter_rows)
         self._rows=[]
         self.refresh()
@@ -48,3 +50,13 @@ class ReportsPage(PageShell):
         for row_index,row in enumerate(rows):
             for column,value in enumerate(row):
                 self.table.setItem(row_index,column,QTableWidgetItem(str(value)))
+
+    def export_csv(self):
+        target,_=QFileDialog.getSaveFileName(self,"تصدير التقرير","farm_report.csv","CSV (*.csv)")
+        if not target:return
+        try:
+            with open(target,"w",newline="",encoding="utf-8-sig") as file:
+                writer=csv.writer(file);writer.writerow(["المؤشر","القيمة"]);writer.writerows(self._rows)
+            QMessageBox.information(self,"تم التصدير",f"تم حفظ التقرير في:\n{target}")
+        except OSError as error:
+            QMessageBox.warning(self,"تعذر التصدير",str(error))
