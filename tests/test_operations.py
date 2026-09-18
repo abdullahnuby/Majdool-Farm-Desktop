@@ -26,3 +26,8 @@ def test_maintenance_order_requires_title():
 def test_asset_update_requires_name():
     with pytest.raises(ValueError, match="اسم الأصل مطلوب"):
         OperationsRepository().update_asset(1, " ", "معدات", "متاح")
+
+
+def test_order_rejects_unknown_status():
+    with pytest.raises(ValueError, match="حالة أمر الصيانة"):
+        OperationsRepository().update_order_status(1, "غير معروفة")

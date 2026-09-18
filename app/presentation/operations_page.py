@@ -19,6 +19,7 @@ class OperationsPage(PageShell):
         self.actions.addWidget(button("＋ عملية زراعية","primary",self.add_operation))
         self.actions.addWidget(button("＋ أصل", "normal", self.add_asset))
         self.actions.addWidget(button("＋ أمر صيانة", "normal", self.add_order))
+        self.actions.addWidget(button("تحديث حالة الأمر", "normal", self.update_order_status))
         self.search.textChanged.connect(self.filter_rows)
         self._rows={}
         self.refresh()
@@ -27,10 +28,11 @@ class OperationsPage(PageShell):
         table=QTableWidget(0,len(headers)); table.setHorizontalHeaderLabels(headers); setup_table(table); return table
 
     def refresh(self):
+        orders=self.repo.orders();self._orders=orders
         self._rows={
             "operations":[[x.operation_type,x.operation_date,x.responsible or "-",x.cost,x.status] for x in self.repo.operations()],
             "assets":[[x.code,x.name,x.asset_type,x.status] for x in self.repo.assets()],
-            "orders":[[x.title,x.opened_date,x.priority,x.status] for x in self.repo.orders()],
+            "orders":[[x.title,x.opened_date,x.priority,x.status] for x in orders],
         }
         self.filter_rows(self.search.text())
 
@@ -41,6 +43,7 @@ class OperationsPage(PageShell):
             table.setRowCount(len(rows))
             for i,row in enumerate(rows):
                 for j,value in enumerate(row):table.setItem(i,j,QTableWidgetItem(str(value)))
+            self._visible_orders=[order for order,row in zip(self._orders,self._rows.get("orders",[])) if not query or query in " ".join(map(str,row)).lower()]
 
     def add_operation(self):
         value,ok=QInputDialog.getText(self,"عملية زراعية","نوع العملية:")
@@ -63,3 +66,12 @@ class OperationsPage(PageShell):
         if ok and title.strip():
             try:self.repo.add_order(title);self.refresh()
             except Exception as error:QMessageBox.warning(self,"تعذر الحفظ",str(error))
+
+    def update_order_status(self):
+        row=self.orders_table.currentRow()
+        if row<0 or row>=len(self._visible_orders):
+            QMessageBox.information(self,"اختر أمرًا","حدد أمر صيانة من تبويب أوامر الصيانة أولاً.");return
+        status,ok=QInputDialog.getItem(self,"حالة الأمر","الحالة:",["مفتوح","قيد التنفيذ","مكتمل","ملغي"],editable=False)
+        if ok:
+            try:self.repo.update_order_status(self._visible_orders[row].id,status);self.refresh()
+            except Exception as error:QMessageBox.warning(self,"تعذر التحديث",str(error))

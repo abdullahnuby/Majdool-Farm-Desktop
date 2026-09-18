@@ -38,3 +38,9 @@ class OperationsRepository:
     if not title.strip():raise ValueError("عنوان أمر الصيانة مطلوب.")
     with SessionLocal() as s:
      x=MaintenanceOrder(title=title.strip(),asset_id=asset_id,opened_date=date.today(),priority=priority);s.add(x);s.commit();s.refresh(x);return x
+ def update_order_status(self,order_id,status):
+  if status not in ["مفتوح","قيد التنفيذ","مكتمل","ملغي"]:raise ValueError("حالة أمر الصيانة غير صحيحة.")
+  with SessionLocal() as s:
+   x=s.get(MaintenanceOrder,order_id)
+   if not x:raise ValueError("أمر الصيانة غير موجود.")
+   x.status=status;s.commit();s.refresh(x);return x
