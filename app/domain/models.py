@@ -33,6 +33,15 @@ class SalesInvoiceLine(Base):
 class Receipt(Base):
  __tablename__="receipts";id:Mapped[int]=mapped_column(primary_key=True);number:Mapped[str]=mapped_column(String(60),unique=True);customer_id:Mapped[int]=mapped_column(ForeignKey("customers.id"));invoice_id:Mapped[int|None]=mapped_column(ForeignKey("sales_invoices.id"));receipt_date:Mapped[date]=mapped_column(Date);amount:Mapped[float]=mapped_column(Float);payment_method:Mapped[str]=mapped_column(String(40),default="نقدي");reference:Mapped[str|None]=mapped_column(String(100));notes:Mapped[str|None]=mapped_column(Text)
 
+class AgriculturalOperation(Base):
+ __tablename__="agricultural_operations";id:Mapped[int]=mapped_column(primary_key=True);operation_type:Mapped[str]=mapped_column(String(80));operation_date:Mapped[date]=mapped_column(Date);block_id:Mapped[int|None]=mapped_column(ForeignKey("blocks.id"));status:Mapped[str]=mapped_column(String(40),default="مفتوح");responsible:Mapped[str|None]=mapped_column(String(120));cost:Mapped[float]=mapped_column(Float,default=0);notes:Mapped[str|None]=mapped_column(Text)
+
+class Asset(Base):
+ __tablename__="assets";id:Mapped[int]=mapped_column(primary_key=True);code:Mapped[str]=mapped_column(String(60),unique=True);name:Mapped[str]=mapped_column(String(150));asset_type:Mapped[str]=mapped_column(String(80),default="معدات");status:Mapped[str]=mapped_column(String(40),default="متاح");purchase_date:Mapped[date|None]=mapped_column(Date);notes:Mapped[str|None]=mapped_column(Text)
+
+class MaintenanceOrder(Base):
+ __tablename__="maintenance_orders";id:Mapped[int]=mapped_column(primary_key=True);asset_id:Mapped[int|None]=mapped_column(ForeignKey("assets.id"));title:Mapped[str]=mapped_column(String(150));opened_date:Mapped[date]=mapped_column(Date);status:Mapped[str]=mapped_column(String(40),default="مفتوح");priority:Mapped[str]=mapped_column(String(40),default="متوسطة");cost:Mapped[float]=mapped_column(Float,default=0);notes:Mapped[str|None]=mapped_column(Text)
+
 from app.domain.models_hr import Employee,Attendance,EmployeeAssignment,EmployeeAdvance,PayrollDeduction,Payroll
 
 from app.domain.models_consultants import Consultant,FarmVisit,AgriculturalReport
