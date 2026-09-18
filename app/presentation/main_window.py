@@ -18,6 +18,7 @@ from app.presentation.consultants_page import ConsultantsPage
 from app.presentation.purchases_page import PurchasesPage
 from app.presentation.assets_page import AssetsPage
 from app.presentation.reports_page import ReportsPage
+from app.presentation.settings_page import SettingsPage
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -74,7 +75,7 @@ class MainWindow(QMainWindow):
             AssetsPage(),
             HRPage(), ConsultantsPage(),
             ReportsPage(),
-            self._placeholder("الإعدادات","إعدادات النظام، النسخ الاحتياطي، المستخدمين والبيانات المرجعية.")
+            SettingsPage()
         ]
         for p in pages: self.pages.addWidget(p)
         rl.addWidget(self.pages,1); layout.addWidget(right,1)
