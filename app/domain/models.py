@@ -1,4 +1,4 @@
-from datetime import date,datetime
+from datetime import date, datetime, timezone
 from sqlalchemy import String,Integer,Float,Date,DateTime,ForeignKey,Text,Boolean
 from sqlalchemy.orm import Mapped,mapped_column
 from app.database.db import Base
@@ -13,7 +13,7 @@ class FarmRow(Base):
 class Palm(Base):
  __tablename__="palms";id:Mapped[int]=mapped_column(primary_key=True);row_id:Mapped[int]=mapped_column(ForeignKey("farm_rows.id"));code:Mapped[str]=mapped_column(String(80),unique=True);variety:Mapped[str]=mapped_column(String(80),default="مجدول");planting_date:Mapped[date|None]=mapped_column(Date);status:Mapped[str]=mapped_column(String(50),default="سليمة");productive:Mapped[bool]=mapped_column(Boolean,default=False);notes:Mapped[str|None]=mapped_column(Text)
 class AuditLog(Base):
- __tablename__="audit_logs";id:Mapped[int]=mapped_column(primary_key=True);action:Mapped[str]=mapped_column(String(100));entity:Mapped[str]=mapped_column(String(100));entity_id:Mapped[int|None]=mapped_column(Integer);details:Mapped[str|None]=mapped_column(Text);created_at:Mapped[datetime]=mapped_column(DateTime,default=datetime.utcnow)
+ __tablename__="audit_logs";id:Mapped[int]=mapped_column(primary_key=True);action:Mapped[str]=mapped_column(String(100));entity:Mapped[str]=mapped_column(String(100));entity_id:Mapped[int|None]=mapped_column(Integer);details:Mapped[str|None]=mapped_column(Text);created_at:Mapped[datetime]=mapped_column(DateTime,default=lambda: datetime.now(timezone.utc))
 class CropSeason(Base):
  __tablename__="crop_seasons";id:Mapped[int]=mapped_column(primary_key=True);name:Mapped[str]=mapped_column(String(100),unique=True);start_date:Mapped[date]=mapped_column(Date);end_date:Mapped[date|None]=mapped_column(Date);status:Mapped[str]=mapped_column(String(40),default="مفتوح");notes:Mapped[str|None]=mapped_column(Text)
 class HarvestBatch(Base):
@@ -23,7 +23,7 @@ class SortLine(Base):
 class PackingBatch(Base):
  __tablename__="packing_batches";id:Mapped[int]=mapped_column(primary_key=True);number:Mapped[str]=mapped_column(String(60),unique=True);batch_id:Mapped[int]=mapped_column(ForeignKey("harvest_batches.id"));packing_date:Mapped[date]=mapped_column(Date);package_type:Mapped[str]=mapped_column(String(80));package_weight_kg:Mapped[float]=mapped_column(Float,default=0);package_count:Mapped[int]=mapped_column(Integer,default=0);total_kg:Mapped[float]=mapped_column(Float,default=0);packing_cost:Mapped[float]=mapped_column(Float,default=0);responsible:Mapped[str|None]=mapped_column(String(120))
 class CropMovement(Base):
- __tablename__="crop_movements";id:Mapped[int]=mapped_column(primary_key=True);batch_id:Mapped[int]=mapped_column(ForeignKey("harvest_batches.id"));movement_type:Mapped[str]=mapped_column(String(40));quantity_kg:Mapped[float]=mapped_column(Float);movement_date:Mapped[datetime]=mapped_column(DateTime,default=datetime.utcnow);reference_type:Mapped[str|None]=mapped_column(String(60));reference_id:Mapped[int|None]=mapped_column(Integer);notes:Mapped[str|None]=mapped_column(Text)
+ __tablename__="crop_movements";id:Mapped[int]=mapped_column(primary_key=True);batch_id:Mapped[int]=mapped_column(ForeignKey("harvest_batches.id"));movement_type:Mapped[str]=mapped_column(String(40));quantity_kg:Mapped[float]=mapped_column(Float);movement_date:Mapped[datetime]=mapped_column(DateTime,default=lambda: datetime.now(timezone.utc));reference_type:Mapped[str|None]=mapped_column(String(60));reference_id:Mapped[int|None]=mapped_column(Integer);notes:Mapped[str|None]=mapped_column(Text)
 class Customer(Base):
  __tablename__="customers";id:Mapped[int]=mapped_column(primary_key=True);code:Mapped[str]=mapped_column(String(60),unique=True);name:Mapped[str]=mapped_column(String(150));phone:Mapped[str|None]=mapped_column(String(50));email:Mapped[str|None]=mapped_column(String(120));address:Mapped[str|None]=mapped_column(String(250));tax_number:Mapped[str|None]=mapped_column(String(80));credit_limit:Mapped[float]=mapped_column(Float,default=0);notes:Mapped[str|None]=mapped_column(Text);active:Mapped[bool]=mapped_column(Boolean,default=True)
 class SalesInvoice(Base):

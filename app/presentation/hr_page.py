@@ -1,6 +1,6 @@
-from PySide6.QtWidgets import QTableWidget,QTableWidgetItem,QInputDialog,QMessageBox
+from PySide6.QtWidgets import QTableWidget,QTableWidgetItem,QMessageBox,QDialog
 from datetime import date
-from app.presentation.ui_theme import PageShell,Toolbar,button,setup_table
+from app.presentation.ui_theme import PageShell,Toolbar,button,setup_table,FormDialog
 from app.infrastructure.hr_repository import HRRepository
 class HRPage(PageShell):
     def __init__(self):
@@ -26,12 +26,12 @@ class HRPage(PageShell):
             QMessageBox.information(self,"اختر موظفاً","حدد موظفاً من الجدول أولاً."); return None
         return self._employees[row]
     def employee(self):
-        c,ok=QInputDialog.getText(self,"موظف جديد","الكود:")
-        if not ok:return
-        n,ok=QInputDialog.getText(self,"موظف جديد","الاسم:")
-        if ok:
-            try:self.repo.add_employee(c,n);self.refresh()
-            except Exception as e:QMessageBox.warning(self,"خطأ",str(e))
+        dialog = FormDialog("موظف جديد", [("الكود", "text", ""), ("الاسم", "text", ""), ("الوظيفة", "text", "عامل")], self)
+        if dialog.exec() != dialog.Accepted:
+            return
+        values = dialog.values()
+        try:self.repo.add_employee(values["الكود"], values["الاسم"], values["الوظيفة"]);self.refresh()
+        except Exception as e:QMessageBox.warning(self,"خطأ",str(e))
     def attendance(self):
         e=self.first()
         if e:
@@ -40,18 +40,19 @@ class HRPage(PageShell):
     def advance(self):
         e=self.first()
         if not e:return
-        q,ok=QInputDialog.getDouble(self,"سلفة","المبلغ:",100,0.01,100000000,2)
-        if ok:
-            try:self.repo.add_advance(e.id,q);self.refresh()
-            except Exception as ex:QMessageBox.warning(self,"خطأ",str(ex))
+        dialog = FormDialog("سلفة", [("المبلغ", "number", 100)], self)
+        if dialog.exec() != dialog.Accepted:
+            return
+        try:self.repo.add_advance(e.id, dialog.values()["المبلغ"]);self.refresh()
+        except Exception as ex:QMessageBox.warning(self,"خطأ",str(ex))
     def deduction(self):
         e=self.first()
         if not e:return
-        q,ok=QInputDialog.getDouble(self,"خصم","المبلغ:",100,0.01,100000000,2)
-        if ok:
-            try:self.repo.add_deduction(e.id,date.today().strftime("%Y-%m"),q,"خصم إداري");self.refresh()
-
-            except Exception as ex:QMessageBox.warning(self,"خطأ",str(ex))
+        dialog = FormDialog("خصم", [("المبلغ", "number", 100)], self)
+        if dialog.exec() != dialog.Accepted:
+            return
+        try:self.repo.add_deduction(e.id,date.today().strftime("%Y-%m"),dialog.values()["المبلغ"],"خصم إداري");self.refresh()
+        except Exception as ex:QMessageBox.warning(self,"خطأ",str(ex))
     def payroll(self):
         e=self.first()
         if e:
@@ -61,12 +62,12 @@ class HRPage(PageShell):
     def edit_employee(self):
         employee=self.first()
         if not employee:return
-        name,ok=QInputDialog.getText(self,"تعديل الموظف","الاسم:",text=employee.name)
-        if not ok:return
-        daily,ok=QInputDialog.getDouble(self,"تعديل الموظف","الأجر اليومي:",employee.daily_rate,0,100000000,2)
-        if ok:
-            try:self.repo.update_employee(employee.id,name,employee.job_title,daily,employee.monthly_salary,employee.status);self.refresh()
-            except Exception as error:QMessageBox.warning(self,"تعذر التعديل",str(error))
+        dialog = FormDialog("تعديل الموظف", [("الاسم", "text", employee.name), ("الأجر اليومي", "number", employee.daily_rate)], self)
+        if dialog.exec() != dialog.Accepted:
+            return
+        values = dialog.values()
+        try:self.repo.update_employee(employee.id, values["الاسم"], employee.job_title, values["الأجر اليومي"], employee.monthly_salary, employee.status);self.refresh()
+        except Exception as error:QMessageBox.warning(self,"تعذر التعديل",str(error))
     def delete_employee(self):
         employee=self.first()
         if not employee:return

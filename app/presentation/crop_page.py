@@ -1,5 +1,5 @@
-from PySide6.QtWidgets import QInputDialog,QMessageBox,QTabWidget,QTableWidget,QTableWidgetItem
-from app.presentation.ui_theme import PageShell,Toolbar,button,setup_table
+from PySide6.QtWidgets import QMessageBox,QTabWidget,QTableWidget,QTableWidgetItem,QDialog
+from app.presentation.ui_theme import PageShell,Toolbar,button,setup_table,FormDialog
 from app.infrastructure.crop_repository import CropRepository
 class CropPage(PageShell):
     def __init__(self):
@@ -21,8 +21,11 @@ class CropPage(PageShell):
             for i,row in enumerate(rows):
                 for j,value in enumerate(row):table.setItem(i,j,QTableWidgetItem(str(value)))
     def add_season(self):
-        name,ok=QInputDialog.getText(self,"موسم جديد","اسم الموسم:")
-        if ok and name.strip():
+        dialog = FormDialog("موسم جديد", [("اسم الموسم", "text", "")], self)
+        if dialog.exec() != dialog.Accepted:
+            return
+        name = dialog.values()["اسم الموسم"]
+        if name.strip():
             try:self.r.add_season(name);self.refresh()
             except Exception as error:QMessageBox.warning(self,"تعذر الحفظ",str(error))
     def selected_batch(self):
@@ -32,29 +35,33 @@ class CropPage(PageShell):
     def add_sort(self):
         batch=self.selected_batch()
         if not batch:return
-        grade,ok=QInputDialog.getText(self,"فرز المحصول","درجة الفرز:")
-        if not ok:return
-        quantity,ok=QInputDialog.getDouble(self,"فرز المحصول",f"الكمية (المتاح {self.r.ready_kg(batch.id)} كجم):",1,0,100000000,2)
-        if ok:
-            try:self.r.add_sort_line(batch.id,grade,quantity);self.refresh()
-            except Exception as error:QMessageBox.warning(self,"تعذر الحفظ",str(error))
+        dialog = FormDialog("فرز المحصول", [("درجة الفرز", "text", "أولى"), ("الكمية", "number", 1)], self)
+        if dialog.exec() != dialog.Accepted:
+            return
+        values = dialog.values()
+        try:self.r.add_sort_line(batch.id, values["درجة الفرز"], values["الكمية"]);self.refresh()
+        except Exception as error:QMessageBox.warning(self,"تعذر الحفظ",str(error))
     def add_packing(self):
         batch=self.selected_batch()
         if not batch:return
-        package_type,ok=QInputDialog.getText(self,"تعبئة المحصول","نوع العبوة:")
-        if not ok:return
-        weight,ok=QInputDialog.getDouble(self,"تعبئة المحصول","وزن العبوة كجم:",1,0,100000,2)
-        if not ok:return
-        count,ok=QInputDialog.getInt(self,"تعبئة المحصول","عدد العبوات:",1,1,1000000)
-        if ok:
-            try:self.r.add_packing(batch.id,package_type,weight,count);self.refresh()
-            except Exception as error:QMessageBox.warning(self,"تعذر الحفظ",str(error))
+        dialog = FormDialog("تعبئة المحصول", [("نوع العبوة", "text", "كرتونة"), ("وزن العبوة", "number", 5), ("عدد العبوات", "int", 1)], self)
+        if dialog.exec() != dialog.Accepted:
+            return
+        values = dialog.values()
+        try:self.r.add_packing(batch.id, values["نوع العبوة"], values["وزن العبوة"], values["عدد العبوات"]);self.refresh()
+        except Exception as error:QMessageBox.warning(self,"تعذر الحفظ",str(error))
     def add_batch(self):
-        season_id,ok=QInputDialog.getInt(self,"دفعة حصاد","رقم الموسم:",1,1,100000)
-        if not ok:return
-        block_id,ok=QInputDialog.getInt(self,"دفعة حصاد","رقم البلوك:",1,1,100000)
-        if not ok:return
-        quantity,ok=QInputDialog.getDouble(self,"دفعة حصاد","الإجمالي كجم:",1,0,100000000,2)
-        if ok:
-            try:self.r.add_batch(season_id,block_id,quantity);self.refresh()
-            except Exception as error:QMessageBox.warning(self,"تعذر الحفظ",str(error))
+        seasons = self.r.seasons()
+        if not seasons:
+            QMessageBox.information(self, "تنبيه", "أنشئ موسماً أولاً."); return
+        blocks = self.r.batches()
+        dialog = FormDialog("دفعة حصاد", [
+            ("الموسم", "combo", seasons[0].id, [(s.name, s.id) for s in seasons]),
+            ("البلوك", "combo", 1 if not blocks else blocks[0].block_id, []),
+            ("الإجمالي كجم", "number", 1),
+        ], self)
+        if dialog.exec() != dialog.Accepted:
+            return
+        values = dialog.values()
+        try:self.r.add_batch(values["الموسم"], values["البلوك"], values["الإجمالي كجم"]);self.refresh()
+        except Exception as error:QMessageBox.warning(self,"تعذر الحفظ",str(error))

@@ -1,5 +1,5 @@
 from datetime import date
-from sqlalchemy import String,Integer,Float,Date,Text,ForeignKey
+from sqlalchemy import String,Integer,Float,Date,Text,ForeignKey,UniqueConstraint
 from sqlalchemy.orm import Mapped,mapped_column
 from app.database.db import Base
 
@@ -18,6 +18,7 @@ class Employee(Base):
 
 class Attendance(Base):
     __tablename__="attendance"
+    __table_args__=(UniqueConstraint("employee_id","attendance_date",name="uq_attendance_employee_day"),)
     id:Mapped[int]=mapped_column(primary_key=True)
     employee_id:Mapped[int]=mapped_column(ForeignKey("employees.id"))
     attendance_date:Mapped[date]=mapped_column(Date)
@@ -59,6 +60,7 @@ class PayrollDeduction(Base):
 
 class Payroll(Base):
     __tablename__="payrolls"
+    __table_args__=(UniqueConstraint("employee_id","period",name="uq_payroll_employee_period"),)
     id:Mapped[int]=mapped_column(primary_key=True)
     employee_id:Mapped[int]=mapped_column(ForeignKey("employees.id"))
     period:Mapped[str]=mapped_column(String(20))

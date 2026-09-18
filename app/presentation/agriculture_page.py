@@ -1,5 +1,5 @@
-from PySide6.QtWidgets import QInputDialog,QMessageBox,QTabWidget,QTableWidget,QTableWidgetItem
-from app.presentation.ui_theme import PageShell,Toolbar,button,setup_table
+from PySide6.QtWidgets import QMessageBox,QTabWidget,QTableWidget,QTableWidgetItem,QDialog
+from app.presentation.ui_theme import PageShell,Toolbar,button,setup_table,FormDialog
 from app.infrastructure.agriculture_repository import AgricultureRepository
 class AgriculturePage(PageShell):
     def __init__(self):
@@ -36,17 +36,17 @@ class AgriculturePage(PageShell):
                 for j,value in enumerate(row):table.setItem(i,j,QTableWidgetItem(str(value)))
 
     def add_irrigation(self):
-        method,ok=QInputDialog.getText(self,"سجل ري","طريقة الري:",text="تنقيط")
-        if not ok:return
-        quantity,ok=QInputDialog.getDouble(self,"سجل ري","الكمية:",1,0,100000000,2)
-        if ok:
-            try:self.repo.add_irrigation(quantity,method=method);self.refresh()
-            except Exception as error:QMessageBox.warning(self,"تعذر الحفظ",str(error))
+        dialog = FormDialog("سجل ري", [("طريقة الري", "text", "تنقيط"), ("الكمية", "number", 1)], self)
+        if dialog.exec() != dialog.Accepted:
+            return
+        values = dialog.values()
+        try:self.repo.add_irrigation(values["الكمية"], method=values["طريقة الري"]);self.refresh()
+        except Exception as error:QMessageBox.warning(self,"تعذر الحفظ",str(error))
 
     def add_fertilization(self):
-        product,ok=QInputDialog.getText(self,"سجل تسميد","اسم السماد:")
-        if not ok:return
-        quantity,ok=QInputDialog.getDouble(self,"سجل تسميد","الكمية:",1,0,100000000,2)
-        if ok:
-            try:self.repo.add_fertilization(product,quantity);self.refresh()
-            except Exception as error:QMessageBox.warning(self,"تعذر الحفظ",str(error))
+        dialog = FormDialog("سجل تسميد", [("اسم السماد", "text", ""), ("الكمية", "number", 1)], self)
+        if dialog.exec() != dialog.Accepted:
+            return
+        values = dialog.values()
+        try:self.repo.add_fertilization(values["اسم السماد"], values["الكمية"]);self.refresh()
+        except Exception as error:QMessageBox.warning(self,"تعذر الحفظ",str(error))

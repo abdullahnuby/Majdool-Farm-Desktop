@@ -1,5 +1,5 @@
-from PySide6.QtWidgets import QComboBox,QInputDialog,QMessageBox,QTabWidget,QTableWidget,QTableWidgetItem
-from app.presentation.ui_theme import PageShell,Toolbar,button,setup_table
+from PySide6.QtWidgets import QComboBox,QMessageBox,QTabWidget,QTableWidget,QTableWidgetItem,QDialog
+from app.presentation.ui_theme import PageShell,Toolbar,button,setup_table,FormDialog
 from app.infrastructure.operations_repository import OperationsRepository
 class OperationsPage(PageShell):
     def __init__(self):
@@ -46,24 +46,29 @@ class OperationsPage(PageShell):
             self._visible_orders=[order for order,row in zip(self._orders,self._rows.get("orders",[])) if not query or query in " ".join(map(str,row)).lower()]
 
     def add_operation(self):
-        value,ok=QInputDialog.getText(self,"عملية زراعية","نوع العملية:")
-        if not ok or not value.strip():return
-        cost,ok=QInputDialog.getDouble(self,"عملية زراعية","التكلفة:",0,0,100000000,2)
-        if ok:
-            try:self.repo.add_operation(value,cost=cost);self.refresh()
+        dialog = FormDialog("عملية زراعية", [("نوع العملية", "text", ""), ("التكلفة", "number", 0)], self)
+        if dialog.exec() != dialog.Accepted:
+            return
+        values = dialog.values()
+        if values["نوع العملية"].strip():
+            try:self.repo.add_operation(values["نوع العملية"], cost=values["التكلفة"]);self.refresh()
             except Exception as error:QMessageBox.warning(self,"تعذر الحفظ",str(error))
 
     def add_asset(self):
-        code,ok=QInputDialog.getText(self,"أصل جديد","الكود:")
-        if not ok:return
-        name,ok=QInputDialog.getText(self,"أصل جديد","الاسم:")
-        if ok and code.strip() and name.strip():
-            try:self.repo.add_asset(code,name);self.refresh()
+        dialog = FormDialog("أصل جديد", [("الكود", "text", ""), ("الاسم", "text", "")], self)
+        if dialog.exec() != dialog.Accepted:
+            return
+        values = dialog.values()
+        if values["الكود"].strip() and values["الاسم"].strip():
+            try:self.repo.add_asset(values["الكود"], values["الاسم"]);self.refresh()
             except Exception as error:QMessageBox.warning(self,"تعذر الحفظ",str(error))
 
     def add_order(self):
-        title,ok=QInputDialog.getText(self,"أمر صيانة","عنوان الأمر:")
-        if ok and title.strip():
+        dialog = FormDialog("أمر صيانة", [("عنوان الأمر", "text", "")], self)
+        if dialog.exec() != dialog.Accepted:
+            return
+        title = dialog.values()["عنوان الأمر"]
+        if title.strip():
             try:self.repo.add_order(title);self.refresh()
             except Exception as error:QMessageBox.warning(self,"تعذر الحفظ",str(error))
 
@@ -71,7 +76,9 @@ class OperationsPage(PageShell):
         row=self.orders_table.currentRow()
         if row<0 or row>=len(self._visible_orders):
             QMessageBox.information(self,"اختر أمرًا","حدد أمر صيانة من تبويب أوامر الصيانة أولاً.");return
-        status,ok=QInputDialog.getItem(self,"حالة الأمر","الحالة:",["مفتوح","قيد التنفيذ","مكتمل","ملغي"],editable=False)
-        if ok:
-            try:self.repo.update_order_status(self._visible_orders[row].id,status);self.refresh()
-            except Exception as error:QMessageBox.warning(self,"تعذر التحديث",str(error))
+        dialog = FormDialog("حالة الأمر", [("الحالة", "combo", "مفتوح", [("مفتوح", "مفتوح"), ("قيد التنفيذ", "قيد التنفيذ"), ("مكتمل", "مكتمل"), ("ملغي", "ملغي")])], self)
+        if dialog.exec() != dialog.Accepted:
+            return
+        status = dialog.values()["الحالة"]
+        try:self.repo.update_order_status(self._visible_orders[row].id,status);self.refresh()
+        except Exception as error:QMessageBox.warning(self,"تعذر التحديث",str(error))

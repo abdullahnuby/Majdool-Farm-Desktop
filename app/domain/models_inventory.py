@@ -1,6 +1,6 @@
 from sqlalchemy import String,Integer,Float,ForeignKey,Boolean,DateTime,Text
 from sqlalchemy.orm import Mapped,mapped_column
-from datetime import datetime
+from datetime import datetime, timezone
 from app.database.db import Base
 
 class Warehouse(Base):
@@ -31,7 +31,7 @@ class InventoryMovement(Base):
     movement_type:Mapped[str]=mapped_column(String(50))
     quantity:Mapped[float]=mapped_column(Float)
     unit_cost:Mapped[float]=mapped_column(Float,default=0)
-    movement_date:Mapped[datetime]=mapped_column(DateTime,default=datetime.utcnow)
+    movement_date:Mapped[datetime]=mapped_column(DateTime,default=lambda: datetime.now(timezone.utc))
     reference_type:Mapped[str|None]=mapped_column(String(60))
     reference_id:Mapped[int|None]=mapped_column(Integer)
     notes:Mapped[str|None]=mapped_column(Text)

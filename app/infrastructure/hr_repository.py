@@ -1,8 +1,10 @@
 from datetime import date
 from sqlalchemy import select,func
 from app.database.db import SessionLocal
+from app.infrastructure.errors import db_errors
 from app.domain.models_hr import Employee,Attendance,EmployeeAssignment,EmployeeAdvance,PayrollDeduction,Payroll
 
+@db_errors
 class HRRepository:
     def employees(self):
         with SessionLocal() as s: return s.scalars(select(Employee).order_by(Employee.name)).all()
@@ -47,12 +49,34 @@ class HRRepository:
         with SessionLocal() as s:
             x=PayrollDeduction(employee_id=employee_id,period=period,amount=amount,reason=reason);s.add(x);s.commit();return x
     def create_payroll(self,employee_id,period):
+        """راتب واحد لكل موظف/فترة (YYYY-MM).
+        الأساس: المرتب الشهري لو موجود، وإلا (الأجر اليومي × أيام الحضور في الفترة).
+        السلف بتتخصم فعلياً وبتتسجل كمسدّدة (FIFO) بحد أقصى المتاح بعد الخصومات."""
+        try:
+            year,month=(int(x) for x in period.split("-"))
+            first=date(year,month,1)
+        except Exception:
+            raise ValueError("الفترة لازم تكون بالشكل YYYY-MM.")
+        last=date(year+(month==12),month%12+1,1)
         with SessionLocal() as s:
             e=s.get(Employee,employee_id)
             if not e: raise ValueError("الموظف غير موجود.")
+            if s.scalar(select(Payroll).where(Payroll.employee_id==employee_id,Payroll.period==period)):
+                raise ValueError("تم إنشاء راتب لهذا الموظف في هذه الفترة بالفعل.")
+            if e.monthly_salary and e.monthly_salary>0:
+                base=e.monthly_salary
+            else:
+                days=s.scalar(select(func.count(Attendance.id)).where(Attendance.employee_id==employee_id,Attendance.status=="حاضر",Attendance.attendance_date>=first,Attendance.attendance_date<last)) or 0
+                base=days*(e.daily_rate or 0)
             d=s.scalar(select(func.coalesce(func.sum(PayrollDeduction.amount),0)).where(PayrollDeduction.employee_id==employee_id,PayrollDeduction.period==period)) or 0
-            a=s.scalar(select(func.coalesce(func.sum(EmployeeAdvance.amount-EmployeeAdvance.recovered),0)).where(EmployeeAdvance.employee_id==employee_id,EmployeeAdvance.status=="مفتوحة")) or 0
-            base=e.monthly_salary or 0
-            net=max(0,base-d-a)
-            x=Payroll(employee_id=employee_id,period=period,base_amount=base,deductions=d,advances=a,net_amount=net)
+            available=max(0,base-d)
+            recovered_now=0
+            for adv in s.scalars(select(EmployeeAdvance).where(EmployeeAdvance.employee_id==employee_id,EmployeeAdvance.status=="مفتوحة").order_by(EmployeeAdvance.advance_date,EmployeeAdvance.id)).all():
+                if available-recovered_now<=0:break
+                part=min(adv.amount-adv.recovered,available-recovered_now)
+                if part<=0:continue
+                adv.recovered+=part;recovered_now+=part
+                if adv.amount-adv.recovered<=1e-9:adv.status="مسددة"
+            net=base-d-recovered_now
+            x=Payroll(employee_id=employee_id,period=period,base_amount=base,deductions=d,advances=recovered_now,net_amount=max(0,net))
             s.add(x);s.commit();s.refresh(x);return x

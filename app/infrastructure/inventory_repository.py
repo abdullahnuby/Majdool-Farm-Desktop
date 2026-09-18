@@ -1,8 +1,10 @@
 from sqlalchemy import select,func
 from app.database.db import SessionLocal
+from app.infrastructure.errors import db_errors
 from app.domain.models_inventory import Warehouse,InventoryItem,InventoryMovement
 from app.application.inventory_service import InventoryService
 
+@db_errors
 class InventoryRepository:
     def warehouses(self):
         with SessionLocal() as s:return s.scalars(select(Warehouse).order_by(Warehouse.name)).all()

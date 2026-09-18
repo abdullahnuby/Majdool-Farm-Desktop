@@ -1,8 +1,10 @@
 from datetime import date
 from sqlalchemy import select,func
 from app.database.db import SessionLocal
+from app.infrastructure.errors import db_errors
 from app.domain.models_consultants import Consultant,FarmVisit,AgriculturalReport
 
+@db_errors
 class ConsultantRepository:
     def consultants(self):
         with SessionLocal() as s:return s.scalars(select(Consultant).order_by(Consultant.name)).all()

@@ -1,5 +1,5 @@
-from PySide6.QtWidgets import QInputDialog,QMessageBox,QTableWidget,QTableWidgetItem
-from app.presentation.ui_theme import PageShell,Toolbar,button,setup_table
+from PySide6.QtWidgets import QMessageBox,QTableWidget,QTableWidgetItem,QDialog
+from app.presentation.ui_theme import PageShell,Toolbar,button,setup_table,FormDialog
 from app.infrastructure.operations_repository import OperationsRepository
 
 
@@ -33,13 +33,13 @@ class AssetsPage(PageShell):
                 self.table.setItem(row_index,column,QTableWidgetItem(str(value)))
 
     def add_asset(self):
-        code,ok=QInputDialog.getText(self,"أصل جديد","الكود:")
-        if not ok:
+        dialog = FormDialog("أصل جديد", [("الكود", "text", ""), ("الاسم", "text", "")], self)
+        if dialog.exec() != dialog.Accepted:
             return
-        name,ok=QInputDialog.getText(self,"أصل جديد","الاسم:")
-        if ok and code.strip() and name.strip():
+        values = dialog.values()
+        if values["الكود"].strip() and values["الاسم"].strip():
             try:
-                self.repo.add_asset(code,name)
+                self.repo.add_asset(values["الكود"], values["الاسم"])
                 self.refresh()
             except Exception as error:
                 QMessageBox.warning(self,"تعذر الحفظ",str(error))
@@ -53,12 +53,12 @@ class AssetsPage(PageShell):
     def edit_asset(self):
         asset=self.selected_asset()
         if not asset:return
-        name,ok=QInputDialog.getText(self,"تعديل أصل","الاسم:",text=asset.name)
-        if not ok:return
-        status,ok=QInputDialog.getText(self,"تعديل أصل","الحالة:",text=asset.status)
-        if ok:
-            try:self.repo.update_asset(asset.id,name,asset.asset_type,status);self.refresh()
-            except Exception as error:QMessageBox.warning(self,"تعذر التعديل",str(error))
+        dialog = FormDialog("تعديل أصل", [("الاسم", "text", asset.name), ("الحالة", "text", asset.status)], self)
+        if dialog.exec() != dialog.Accepted:
+            return
+        values = dialog.values()
+        try:self.repo.update_asset(asset.id, values["الاسم"], asset.asset_type, values["الحالة"]);self.refresh()
+        except Exception as error:QMessageBox.warning(self,"تعذر التعديل",str(error))
 
     def delete_asset(self):
         asset=self.selected_asset()

@@ -1,7 +1,9 @@
 from datetime import date
 from sqlalchemy import select,func
 from app.database.db import SessionLocal
+from app.infrastructure.errors import db_errors
 from app.domain.models import AgriculturalOperation,Asset,MaintenanceOrder
+@db_errors
 class OperationsRepository:
  def operations(self):
   with SessionLocal() as s:return s.scalars(select(AgriculturalOperation).order_by(AgriculturalOperation.operation_date.desc())).all()

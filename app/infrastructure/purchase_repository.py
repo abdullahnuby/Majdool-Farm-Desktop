@@ -1,9 +1,11 @@
 from datetime import date
 from sqlalchemy import select,func
 from app.database.db import SessionLocal
+from app.infrastructure.errors import db_errors
 from app.domain.models_purchases import Supplier,PurchaseInvoice,PurchaseLine,SupplierPayment
 from app.domain.models_inventory import Warehouse,InventoryItem,InventoryMovement
 
+@db_errors
 class PurchaseRepository:
     def suppliers(self):
         with SessionLocal() as s:return s.scalars(select(Supplier).order_by(Supplier.name)).all()
@@ -27,10 +29,12 @@ class PurchaseRepository:
             if not x:raise ValueError("المورد غير موجود.")
             if s.scalar(select(PurchaseInvoice).where(PurchaseInvoice.supplier_id==supplier_id)) or s.scalar(select(SupplierPayment).where(SupplierPayment.supplier_id==supplier_id)):raise ValueError("لا يمكن حذف مورد مرتبط بفواتير أو سداد.")
             s.delete(x);s.commit()
-    def create_invoice(self,supplier_id):
+    def create_invoice(self,supplier_id,invoice_date=None):
         with SessionLocal() as s:
-            n=f"PI-{date.today().strftime('%Y%m%d')}-{(s.scalar(select(func.count(PurchaseInvoice.id))) or 0)+1:04d}"
-            x=PurchaseInvoice(number=n,supplier_id=supplier_id,invoice_date=date.today());s.add(x);s.commit();s.refresh(x);return x
+            if not s.get(Supplier,supplier_id):raise ValueError("المورد غير موجود.")
+            invoice_date=invoice_date or date.today()
+            n=f"PI-{invoice_date.strftime('%Y%m%d')}-{(s.scalar(select(func.count(PurchaseInvoice.id))) or 0)+1:04d}"
+            x=PurchaseInvoice(number=n,supplier_id=supplier_id,invoice_date=invoice_date);s.add(x);s.commit();s.refresh(x);return x
     def add_line(self,invoice_id,name,qty,price,unit="وحدة",category="عام"):
         if qty<=0 or price<0:raise ValueError("الكمية والسعر غير صحيحين.")
         with SessionLocal() as s:
@@ -39,6 +43,31 @@ class PurchaseRepository:
             s.add(PurchaseLine(invoice_id=invoice_id,item_name=name,category=category,quantity=qty,unit=unit,unit_price=price,line_total=qty*price))
             s.flush();lines=s.scalars(select(PurchaseLine).where(PurchaseLine.invoice_id==invoice_id)).all()
             inv.subtotal=sum(x.line_total for x in lines);inv.total=inv.subtotal-inv.discount+inv.tax;s.commit()
+
+    def delete_line(self, invoice_id, line_id):
+        with SessionLocal() as s:
+            inv=s.get(PurchaseInvoice,invoice_id); line=s.get(PurchaseLine,line_id)
+            if not inv or not line or line.invoice_id != invoice_id:
+                raise ValueError("بند الفاتورة غير موجود.")
+            if inv.status != "مسودة":
+                raise ValueError("لا يمكن تعديل فاتورة مؤكدة.")
+            s.delete(line); s.flush()
+            lines=s.scalars(select(PurchaseLine).where(PurchaseLine.invoice_id==invoice_id)).all()
+            inv.subtotal=sum(x.line_total for x in lines); inv.total=inv.subtotal-inv.discount+inv.tax
+            s.commit()
+
+    def update_draft(self, invoice_id, supplier_id, invoice_date, lines):
+        if not lines: raise ValueError("أضف بندًا واحدًا على الأقل.")
+        with SessionLocal() as s:
+            inv=s.get(PurchaseInvoice,invoice_id)
+            if not inv or inv.status != "مسودة": raise ValueError("لا يمكن تعديل هذه الفاتورة.")
+            if not s.get(Supplier,supplier_id): raise ValueError("المورد غير موجود.")
+            inv.supplier_id=supplier_id; inv.invoice_date=invoice_date
+            for old in s.scalars(select(PurchaseLine).where(PurchaseLine.invoice_id==invoice_id)).all(): s.delete(old)
+            for name, qty, price in lines:
+                if not name.strip() or qty <= 0 or price < 0: raise ValueError("بيانات بند الشراء غير صحيحة.")
+                s.add(PurchaseLine(invoice_id=invoice_id,item_name=name.strip(),quantity=qty,unit_price=price,line_total=qty*price))
+            s.flush(); current=s.scalars(select(PurchaseLine).where(PurchaseLine.invoice_id==invoice_id)).all(); inv.subtotal=sum(x.line_total for x in current); inv.total=inv.subtotal-inv.discount+inv.tax; s.commit()
     def confirm(self,invoice_id,warehouse_id=None):
         with SessionLocal() as s:
             inv=s.get(PurchaseInvoice,invoice_id)
@@ -66,15 +95,35 @@ class PurchaseRepository:
     def pay(self,supplier_id,invoice_id,amount,method="نقدي"):
         if amount<=0:raise ValueError("مبلغ السداد يجب أن يكون أكبر من صفر.")
         with SessionLocal() as s:
-            inv=s.get(PurchaseInvoice,invoice_id)
-            if inv:
+            if not s.get(Supplier,supplier_id):raise ValueError("المورد غير موجود.")
+            inv=None
+            if invoice_id:
+                inv=s.get(PurchaseInvoice,invoice_id)
+                if not inv:raise ValueError("الفاتورة غير موجودة.")
+                if inv.supplier_id!=supplier_id:raise ValueError("الفاتورة دي مش بتاعة المورد ده.")
+                if inv.status!="مؤكدة":raise ValueError("السداد يكون على فاتورة مؤكدة فقط.")
                 paid=s.scalar(select(func.coalesce(func.sum(SupplierPayment.amount),0)).where(SupplierPayment.invoice_id==invoice_id)) or 0
-                if paid+amount>inv.total:raise ValueError("السداد أكبر من المستحق.")
+                if paid+amount>inv.total+1e-6:raise ValueError("السداد أكبر من المستحق.")
             x=SupplierPayment(supplier_id=supplier_id,invoice_id=invoice_id,payment_date=date.today(),amount=amount,payment_method=method)
-            s.add(x);s.commit();return x
+            s.add(x);s.flush()
+            if inv:  # الحقل paid بيتحسب دايماً من المدفوعات — مش رقم منفصل ممكن يبعد عن الحقيقة
+                inv.paid=s.scalar(select(func.coalesce(func.sum(SupplierPayment.amount),0)).where(SupplierPayment.invoice_id==invoice_id)) or 0
+            s.commit();s.refresh(x);return x
     def outstanding(self,invoice_id):
         with SessionLocal() as s:
             inv=s.get(PurchaseInvoice,invoice_id)
             if not inv:return 0
             paid=s.scalar(select(func.coalesce(func.sum(SupplierPayment.amount),0)).where(SupplierPayment.invoice_id==invoice_id)) or 0
             return max(0,inv.total-paid)
+
+    def delete_draft(self, invoice_id):
+        with SessionLocal() as s:
+            inv=s.get(PurchaseInvoice,invoice_id)
+            if not inv:
+                raise ValueError("الفاتورة غير موجودة.")
+            if inv.status != "مسودة":
+                raise ValueError("لا يمكن حذف فاتورة مؤكدة.")
+            for line in s.scalars(select(PurchaseLine).where(PurchaseLine.invoice_id==invoice_id)).all():
+                s.delete(line)
+            s.delete(inv)
+            s.commit()

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from PySide6.QtWidgets import (
     QMainWindow,QWidget,QHBoxLayout,QListWidget,QListWidgetItem,QStackedWidget,
-    QLabel,QVBoxLayout,QFrame,QToolButton
+    QLabel,QVBoxLayout,QFrame,QToolButton,QLineEdit
 )
 from PySide6.QtCore import Qt
 from app.presentation.ui_theme import APP_QSS
@@ -19,6 +19,8 @@ from app.presentation.purchases_page import PurchasesPage
 from app.presentation.assets_page import AssetsPage
 from app.presentation.reports_page import ReportsPage
 from app.presentation.settings_page import SettingsPage
+
+from app.logging_config import logger
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -62,9 +64,13 @@ class MainWindow(QMainWindow):
         layout.addWidget(sidebar)
 
         right=QWidget(); rl=QVBoxLayout(right); rl.setContentsMargins(0,0,0,0); rl.setSpacing(0)
-        top=QFrame(); top.setObjectName("Topbar"); tl=QHBoxLayout(top); tl.setContentsMargins(24,12,24,12)
-        self.breadcrumb=QLabel("لوحة التحكم"); self.breadcrumb.setObjectName("Breadcrumb"); tl.addWidget(self.breadcrumb)
+        top=QFrame(); top.setObjectName("Topbar"); tl=QHBoxLayout(top); tl.setContentsMargins(24,10,24,10); tl.setSpacing(10)
+        context=QVBoxLayout(); context.setSpacing(0)
+        top_title=QLabel("مركز إدارة المزرعة"); top_title.setObjectName("TopbarTitle"); context.addWidget(top_title)
+        self.breadcrumb=QLabel("لوحة التحكم"); self.breadcrumb.setObjectName("Breadcrumb"); context.addWidget(self.breadcrumb)
+        tl.addLayout(context)
         tl.addStretch()
+        search=QLineEdit(); search.setObjectName("GlobalSearch"); search.setPlaceholderText("ابحث في المزرعة..."); search.setClearButtonEnabled(True); search.setFixedWidth(250); tl.addWidget(search)
         user=QLabel("مدير المزرعة  •  الإدارة"); user.setStyleSheet("font-weight:700;color:#334155;")
         tl.addWidget(user); rl.addWidget(top)
 
@@ -94,4 +100,4 @@ class MainWindow(QMainWindow):
         page=self.pages.currentWidget()
         if hasattr(page,"refresh"):
             try: page.refresh()
-            except Exception: pass
+            except Exception: logger.exception("تعذر تحديث الصفحة")

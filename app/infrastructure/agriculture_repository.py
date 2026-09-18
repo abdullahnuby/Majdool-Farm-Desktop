@@ -1,9 +1,11 @@
 from datetime import date
 from sqlalchemy import select
 from app.database.db import SessionLocal
+from app.infrastructure.errors import db_errors
 from app.domain.models import IrrigationRecord,FertilizationRecord
 
 
+@db_errors
 class AgricultureRepository:
     def irrigations(self):
         with SessionLocal() as session:

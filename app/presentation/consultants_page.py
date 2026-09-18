@@ -1,5 +1,5 @@
-from PySide6.QtWidgets import QInputDialog,QMessageBox,QTabWidget,QTableWidget,QTableWidgetItem
-from app.presentation.ui_theme import PageShell,Toolbar,button,setup_table
+from PySide6.QtWidgets import QMessageBox,QTabWidget,QTableWidget,QTableWidgetItem,QDialog
+from app.presentation.ui_theme import PageShell,Toolbar,button,setup_table,FormDialog
 from app.infrastructure.consultant_repository import ConsultantRepository
 class ConsultantsPage(PageShell):
     def __init__(self):
@@ -17,10 +17,13 @@ class ConsultantsPage(PageShell):
         for i,x in enumerate(self._consultants):
             for j,v in enumerate([x.code,x.name,x.specialty]):self.consultant_table.setItem(i,j,QTableWidgetItem(str(v)))
     def consultant(self):
-        c,ok=QInputDialog.getText(self,"استشاري جديد","الكود:")
-        if not ok:return
-        n,ok=QInputDialog.getText(self,"استشاري جديد","الاسم:")
-        if ok and c.strip() and n.strip():
+        dialog = FormDialog("استشاري جديد", [("الكود", "text", ""), ("الاسم", "text", "")], self)
+        if dialog.exec() != dialog.Accepted:
+            return
+        values = dialog.values()
+        c = values["الكود"]
+        n = values["الاسم"]
+        if c.strip() and n.strip():
             try:self.repo.add_consultant(c,n);self.refresh()
             except Exception as e:QMessageBox.warning(self,"خطأ",str(e))
     def visit(self):
@@ -31,12 +34,14 @@ class ConsultantsPage(PageShell):
     def report(self):
         vs=self.repo.visits()
         if not vs:return
-        title,ok=QInputDialog.getText(self,"تقرير زراعي","العنوان:")
-        if not ok:return
-        findings,ok=QInputDialog.getText(self,"تقرير زراعي","الملاحظات:")
-        if not ok:return
-        rec,ok=QInputDialog.getText(self,"تقرير زراعي","التوصيات:")
-        if ok:
+        dialog = FormDialog("تقرير زراعي", [("العنوان", "text", ""), ("الملاحظات", "text", ""), ("التوصيات", "text", "")], self)
+        if dialog.exec() != dialog.Accepted:
+            return
+        values = dialog.values()
+        title = values["العنوان"]
+        findings = values["الملاحظات"]
+        rec = values["التوصيات"]
+        if title.strip() and findings.strip():
             try:self.repo.add_report(vs[0].id,title,findings,rec)
             except Exception as e:QMessageBox.warning(self,"خطأ",str(e))
     def selected_consultant(self):
@@ -46,10 +51,12 @@ class ConsultantsPage(PageShell):
     def edit_consultant(self):
         consultant=self.selected_consultant()
         if not consultant:return
-        name,ok=QInputDialog.getText(self,"تعديل الاستشاري","الاسم:",text=consultant.name)
-        if ok:
-            try:self.repo.update_consultant(consultant.id,name,consultant.specialty);self.refresh()
-            except Exception as error:QMessageBox.warning(self,"تعذر التعديل",str(error))
+        dialog = FormDialog("تعديل الاستشاري", [("الاسم", "text", consultant.name)], self)
+        if dialog.exec() != dialog.Accepted:
+            return
+        name = dialog.values()["الاسم"]
+        try:self.repo.update_consultant(consultant.id,name,consultant.specialty);self.refresh()
+        except Exception as error:QMessageBox.warning(self,"تعذر التعديل",str(error))
     def delete_consultant(self):
         consultant=self.selected_consultant()
         if not consultant:return

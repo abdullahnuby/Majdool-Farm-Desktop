@@ -1,7 +1,7 @@
 from pathlib import Path
-import shutil
 from PySide6.QtWidgets import QFileDialog,QLabel,QMessageBox,QPushButton
 from app.config import DATABASE_URL
+from app.database.db import backup_database, restore_database
 from app.presentation.ui_theme import PageShell,button
 
 
@@ -16,7 +16,9 @@ class SettingsPage(PageShell):
         status.setObjectName("PageSubtitle")
         self.content.addWidget(status)
         backup=button("إنشاء نسخة احتياطية","primary",self.backup)
+        restore=button("استعادة نسخة احتياطية","normal",self.restore)
         self.content.addWidget(backup)
+        self.content.addWidget(restore)
         self.content.addStretch()
 
     def _database_path(self):
@@ -32,7 +34,20 @@ class SettingsPage(PageShell):
         if not target:
             return
         try:
-            shutil.copy2(self.database_path,target)
+            backup_database(target)
             QMessageBox.information(self,"تم الحفظ",f"تم إنشاء النسخة الاحتياطية في:\n{target}")
-        except OSError as error:
+        except Exception as error:
             QMessageBox.warning(self,"تعذر الحفظ",str(error))
+
+    def restore(self):
+        source,_=QFileDialog.getOpenFileName(self,"اختر نسخة احتياطية","", "SQLite Database (*.db)")
+        if not source:
+            return
+        confirm = QMessageBox.question(self,"تأكيد الاستعادة","سيتم استبدال قاعدة البيانات الحالية بنسخة احتياطية محددة. هل تريد المتابعة؟")
+        if confirm != QMessageBox.StandardButton.Yes:
+            return
+        try:
+            restore_database(source, self.database_path)
+            QMessageBox.information(self,"تمت الاستعادة","تم استعادة قاعدة البيانات بنجاح. أعد تشغيل التطبيق لعرض البيانات الحالية.")
+        except Exception as error:
+            QMessageBox.warning(self,"تعذر الاستعادة",str(error))
